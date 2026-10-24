@@ -5,7 +5,8 @@ import HowToWork from "../pages/Howitwork";
 import About from "../pages/About";
 import Footer from "../components/layout/Footer";
 import Dashboard from "../pages/Dashboard";
-import Matches from "../pages/Matches"
+import Matches from "../pages/Matches";
+import Request from "../pages/Request";
 
 function Mainlayout() {
     const [activePage, setActivePage] = useState("home");
@@ -23,6 +24,8 @@ function Mainlayout() {
                 {activePage === "dashboard" && <Dashboard />}
 
                 {activePage === "matches" && <Matches />}
+
+                {activePage === "request" && <Request/>}
             </main>
             <Footer/>
         </div>
