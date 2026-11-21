@@ -2,54 +2,36 @@ const db = require('../config/db');
 
 exports.getRequests = async (req, res) => {
   try {
-    const currentUserId = req.user ? req.user.id : 'usr_narendar';
+    const userId = req.user ? req.user.id : 'usr_narendar';
     const { status } = req.query;
 
-    let requests = db.getCollection('exchangeRequests').filter(
-      (r) => r.senderId === currentUserId || r.receiverId === currentUserId
+    let requests = db.getCollection('exchangeRequests');
+
+    requests = requests.filter(
+      (r) => r.senderId === userId || r.receiverId === userId
     );
 
-    if (status && status !== 'all') {
-      requests = requests.filter((r) => r.status.toLowerCase() === status.toLowerCase());
+    if (status) {
+      requests = requests.filter(
+        (r) => (r.status || '').toLowerCase() === status.toLowerCase()
+      );
     }
 
-    // Populate sender and receiver objects
-    const populated = requests.map((r) => {
-      const sender = db.findById('users', r.senderId);
-      const receiver = db.findById('users', r.receiverId);
+    const populated = requests.map((reqItem) => {
+      const sender = db.findById('users', reqItem.senderId);
+      const receiver = db.findById('users', reqItem.receiverId);
 
-      const isIncoming = r.receiverId === currentUserId;
+      const safeSender = sender ? (({ password, ...u }) => u)(sender) : null;
+      const safeReceiver = receiver ? (({ password, ...u }) => u)(receiver) : null;
 
       return {
-        ...r,
-        isIncoming,
-        sender: sender
-          ? {
-              id: sender.id,
-              name: sender.name,
-              username: sender.username,
-              avatar: sender.avatar,
-              role: sender.role,
-              rating: sender.rating,
-              location: sender.location,
-            }
-          : { id: r.senderId, name: 'Unknown User' },
-        receiver: receiver
-          ? {
-              id: receiver.id,
-              name: receiver.name,
-              username: receiver.username,
-              avatar: receiver.avatar,
-              role: receiver.role,
-              rating: receiver.rating,
-              location: receiver.location,
-            }
-          : { id: r.receiverId, name: 'Unknown User' },
+        ...reqItem,
+        sender: safeSender,
+        receiver: safeReceiver,
+        offeredSkills: reqItem.offeredSkills || (reqItem.proposedTeachSkill ? [reqItem.proposedTeachSkill] : []),
+        requestedSkills: reqItem.requestedSkills || (reqItem.requestedLearnSkill ? [reqItem.requestedLearnSkill] : []),
       };
     });
-
-    // Sort by createdAt descending
-    populated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return res.json({
       success: true,
@@ -66,53 +48,57 @@ exports.createRequest = async (req, res) => {
     const senderId = req.user ? req.user.id : 'usr_narendar';
     const {
       receiverId,
-      peerId,
-      targetUserId,
       proposedTeachSkill,
       requestedLearnSkill,
+      senderSkills,
+      receiverSkills,
+      offeredTitle,
+      requestedTitle,
+      offeredSkills,
+      requestedSkills,
       message,
+      proposedDate,
+      proposedTime,
+      date,
+      time,
     } = req.body;
 
-    const actualReceiverId = receiverId || peerId || targetUserId;
-    if (!actualReceiverId) {
-      return res.status(400).json({ success: false, message: 'Recipient is required.' });
-    }
-
-    if (actualReceiverId === senderId) {
+    if (!receiverId) {
       return res.status(400).json({
         success: false,
-        message: 'You cannot send an exchange request to yourself.',
+        message: 'receiverId is required to send an exchange request.',
       });
     }
 
-    // Check for existing pending request
-    const existing = db.findOne('exchangeRequests', {
-      senderId,
-      receiverId: actualReceiverId,
-      status: 'pending',
-    });
-
-    if (existing) {
-      return res.json({
-        success: true,
-        message: 'Exchange request already pending.',
-        request: existing,
-      });
-    }
+    const teachSkillsList = offeredSkills || senderSkills || (proposedTeachSkill ? [proposedTeachSkill] : ['Web Development']);
+    const learnSkillsList = requestedSkills || receiverSkills || (requestedLearnSkill ? [requestedLearnSkill] : ['Design']);
 
     const newRequest = db.insert('exchangeRequests', {
+      id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       senderId,
-      receiverId: actualReceiverId,
-      proposedTeachSkill: proposedTeachSkill || 'Full-Stack Development',
-      requestedLearnSkill: requestedLearnSkill || 'UI/UX Design',
-      message: message || 'Hi! I would love to connect and exchange learning sessions with you on Skillor.',
+      receiverId,
+      proposedTeachSkill: offeredTitle || proposedTeachSkill || (teachSkillsList[0] || 'Skill'),
+      requestedLearnSkill: requestedTitle || requestedLearnSkill || (learnSkillsList[0] || 'Skill'),
+      offeredSkills: teachSkillsList,
+      requestedSkills: learnSkillsList,
+      message: message || '',
+      proposedDate: proposedDate || date || null,
+      proposedTime: proposedTime || time || null,
       status: 'pending',
+      createdAt: new Date().toISOString(),
     });
+
+    const sender = db.findById('users', senderId);
+    const receiver = db.findById('users', receiverId);
 
     return res.status(201).json({
       success: true,
-      message: 'Exchange request sent successfully!',
-      request: newRequest,
+      message: 'Exchange proposal submitted successfully!',
+      request: {
+        ...newRequest,
+        sender: sender ? (({ password, ...u }) => u)(sender) : null,
+        receiver: receiver ? (({ password, ...u }) => u)(receiver) : null,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -128,35 +114,40 @@ exports.acceptRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Request not found.' });
     }
 
-    const updated = db.update('exchangeRequests', id, { status: 'accepted' });
+    const updated = db.update('exchangeRequests', id, {
+      status: 'accepted',
+      acceptedAt: new Date().toISOString(),
+    });
 
-    // Create or locate conversation between the two users
-    let conv = db.getCollection('conversations').find(
+    const conversations = db.getCollection('conversations');
+    let conv = conversations.find(
       (c) =>
-        c.participants &&
+        Array.isArray(c.participants) &&
         c.participants.includes(request.senderId) &&
         c.participants.includes(request.receiverId)
     );
 
     if (!conv) {
       conv = db.insert('conversations', {
+        id: `conv_${request.senderId}_${request.receiverId}_${Date.now().toString(36)}`,
         participants: [request.senderId, request.receiverId],
+        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     }
 
-    // Insert auto greeting message
     db.insert('messages', {
+      id: `msg_${Date.now()}`,
       conversationId: conv.id,
       senderId: request.receiverId,
-      text: `Exchange proposal accepted! Let's schedule our first session: "${request.proposedTeachSkill}" <-> "${request.requestedLearnSkill}".`,
-      createdAt: new Date().toISOString(),
+      text: `Exchange request accepted! Looking forward to learning ${request.proposedTeachSkill || 'together'} and sharing knowledge.`,
       read: false,
+      createdAt: new Date().toISOString(),
     });
 
     return res.json({
       success: true,
-      message: 'Exchange request accepted! Chat unlocked.',
+      message: 'Exchange request accepted! A direct chat room has been activated.',
       request: updated,
       conversationId: conv.id,
     });
@@ -168,16 +159,18 @@ exports.acceptRequest = async (req, res) => {
 exports.rejectRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const request = db.findById('exchangeRequests', id);
+    const updated = db.update('exchangeRequests', id, {
+      status: 'rejected',
+      rejectedAt: new Date().toISOString(),
+    });
 
-    if (!request) {
+    if (!updated) {
       return res.status(404).json({ success: false, message: 'Request not found.' });
     }
 
-    const updated = db.update('exchangeRequests', id, { status: 'rejected' });
     return res.json({
       success: true,
-      message: 'Exchange request rejected.',
+      message: 'Exchange request declined.',
       request: updated,
     });
   } catch (err) {
@@ -194,22 +187,24 @@ exports.completeRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Request not found.' });
     }
 
-    const updated = db.update('exchangeRequests', id, { status: 'completed' });
+    const updated = db.update('exchangeRequests', id, {
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+    });
 
-    // Update sessions count and hours for both users
     [request.senderId, request.receiverId].forEach((uid) => {
-      const u = db.findById('users', uid);
-      if (u) {
+      const user = db.findById('users', uid);
+      if (user) {
         db.update('users', uid, {
-          sessionsCompleted: (u.sessionsCompleted || 0) + 1,
-          hoursExchanged: (u.hoursExchanged || 0) + 1.5,
+          sessionsCompleted: (user.sessionsCompleted || 0) + 1,
+          hoursExchanged: (user.hoursExchanged || 0) + 1.5,
         });
       }
     });
 
     return res.json({
       success: true,
-      message: 'Exchange completed successfully! Leave a peer review to help the community.',
+      message: 'Exchange successfully marked as completed!',
       request: updated,
     });
   } catch (err) {

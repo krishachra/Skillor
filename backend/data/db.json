@@ -21,8 +21,8 @@
         "Figma",
         "Video Editing"
       ],
-      "rating": 4.95,
-      "reviewsCount": 28,
+      "rating": 5,
+      "reviewsCount": 3,
       "sessionsCompleted": 34,
       "hoursExchanged": 51,
       "availability": [
@@ -42,7 +42,8 @@
         "Verified Mentor",
         "Architecture Guru"
       ],
-      "createdAt": "2026-01-10T10:00:00.000Z"
+      "createdAt": "2026-01-10T10:00:00.000Z",
+      "updatedAt": "2026-11-20T04:37:35.615Z"
     },
     {
       "id": "usr_priya",
@@ -65,7 +66,7 @@
         "Node.js"
       ],
       "rating": 5,
-      "reviewsCount": 2,
+      "reviewsCount": 3,
       "sessionsCompleted": 41,
       "hoursExchanged": 61,
       "availability": [
@@ -86,7 +87,7 @@
         "Verified Pro"
       ],
       "createdAt": "2026-01-12T11:00:00.000Z",
-      "updatedAt": "2026-11-17T07:24:46.909Z"
+      "updatedAt": "2026-11-20T04:26:23.377Z"
     },
     {
       "id": "usr_aarav",
@@ -581,6 +582,62 @@
       "message": "Looking forward to learning Figma in exchange for Python!",
       "status": "accepted",
       "updatedAt": "2026-11-17T07:24:46.902Z"
+    },
+    {
+      "id": "req_1795148783369_rlbi",
+      "createdAt": "2026-11-20T04:26:23.369Z",
+      "senderId": "usr_narendar",
+      "receiverId": "usr_priya",
+      "proposedTeachSkill": "React State Management",
+      "requestedLearnSkill": "Figma Auto Layout",
+      "offeredSkills": [
+        "React State Management"
+      ],
+      "requestedSkills": [
+        "Figma Auto Layout"
+      ],
+      "message": "Looking forward to our skill exchange session!",
+      "proposedDate": null,
+      "proposedTime": null,
+      "status": "accepted",
+      "acceptedAt": "2026-11-20T04:26:23.371Z",
+      "updatedAt": "2026-11-20T04:26:23.371Z"
+    },
+    {
+      "id": "req_1795149506633_bwxm",
+      "createdAt": "2026-11-20T04:38:26.633Z",
+      "senderId": "usr_priya",
+      "receiverId": "usr_rohan",
+      "proposedTeachSkill": "Graphic Design",
+      "requestedLearnSkill": "Node.js",
+      "offeredSkills": [
+        "Graphic Design"
+      ],
+      "requestedSkills": [
+        "Node.js"
+      ],
+      "message": "Hi Rohan Mehta! I would love to connect and exchange complementary skills with you.",
+      "proposedDate": null,
+      "proposedTime": null,
+      "status": "pending"
+    },
+    {
+      "id": "req_1795149510608_ak8q",
+      "createdAt": "2026-11-20T04:38:30.608Z",
+      "senderId": "usr_priya",
+      "receiverId": "usr_aarav",
+      "proposedTeachSkill": "UI/UX Design",
+      "requestedLearnSkill": "Python",
+      "offeredSkills": [
+        "UI/UX Design"
+      ],
+      "requestedSkills": [
+        "Python"
+      ],
+      "message": "Hi Aarav Sharma! I would love to connect and exchange complementary skills with you.",
+      "proposedDate": null,
+      "proposedTime": null,
+      "status": "pending"
     }
   ],
   "sessions": [
@@ -640,6 +697,20 @@
       "notes": "1-on-1 collaborative interactive learning session.",
       "status": "completed",
       "updatedAt": "2026-11-17T07:24:46.907Z"
+    },
+    {
+      "id": "ses_1795148783373_c6jh",
+      "createdAt": "2026-11-20T04:26:23.373Z",
+      "exchangeId": "req_1795148783369_rlbi",
+      "teacherId": "usr_narendar",
+      "learnerId": "usr_priya",
+      "skill": "React Patterns",
+      "date": "2026-03-25",
+      "time": "18:00",
+      "duration": 60,
+      "meetingLink": "https://meet.skillor.io/room-ev9kkat",
+      "status": "scheduled",
+      "notes": "Live peer-to-peer interactive practice and feedback session."
     }
   ],
   "reviews": [
@@ -713,6 +784,30 @@
         "Helpful Peer",
         "Recommended"
       ]
+    },
+    {
+      "id": "rev_1795148783376_6amt",
+      "createdAt": "2026-11-20T04:26:23.376Z",
+      "reviewerId": "usr_narendar",
+      "revieweeId": "usr_priya",
+      "exchangeId": null,
+      "rating": 5,
+      "comment": "Outstanding designer! Highly recommended.",
+      "skill": "UI/UX Design",
+      "tags": [
+        "Great Mentor"
+      ]
+    },
+    {
+      "id": "rev_1795149455613_cb8k",
+      "createdAt": "2026-11-20T04:37:35.613Z",
+      "reviewerId": "usr_priya",
+      "revieweeId": "usr_narendar",
+      "exchangeId": null,
+      "rating": 5,
+      "comment": "we",
+      "skill": "General Skill Exchange",
+      "tags": []
     }
   ],
   "conversations": [
@@ -722,7 +817,7 @@
         "usr_narendar",
         "usr_priya"
       ],
-      "updatedAt": "2026-03-02T16:00:00.000Z"
+      "updatedAt": "2026-11-20T04:26:23.375Z"
     },
     {
       "id": "conv_narendar_aarav",
@@ -792,6 +887,24 @@
       "mediaUrl": null,
       "read": true,
       "updatedAt": "2026-11-17T07:27:09.656Z"
+    },
+    {
+      "id": "msg_1795148783372",
+      "createdAt": "2026-11-20T04:26:23.372Z",
+      "conversationId": "conv_narendar_priya",
+      "senderId": "usr_priya",
+      "text": "Exchange request accepted! Looking forward to learning React State Management and sharing knowledge.",
+      "read": false
+    },
+    {
+      "id": "msg_1795148783376_up4j",
+      "createdAt": "2026-11-20T04:26:23.376Z",
+      "conversationId": "conv_narendar_priya",
+      "senderId": "usr_narendar",
+      "text": "Hello from integration test!",
+      "image": null,
+      "read": true,
+      "updatedAt": "2026-11-20T04:33:50.476Z"
     }
   ],
   "notifications": []

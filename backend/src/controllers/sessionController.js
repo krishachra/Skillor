@@ -2,41 +2,47 @@ const db = require('../config/db');
 
 exports.getSessions = async (req, res) => {
   try {
-    const currentUserId = req.user ? req.user.id : 'usr_narendar';
+    const userId = req.user ? req.user.id : 'usr_narendar';
     const { status } = req.query;
 
-    let sessions = db.getCollection('sessions').filter(
-      (s) => s.teacherId === currentUserId || s.learnerId === currentUserId
-    );
+    let sessions = db.getCollection('sessions');
 
-    if (status && status !== 'all') {
-      sessions = sessions.filter((s) => s.status.toLowerCase() === status.toLowerCase());
+    if (userId) {
+      sessions = sessions.filter(
+        (s) => s.teacherId === userId || s.learnerId === userId
+      );
     }
 
-    const populated = sessions.map((s) => {
-      const isTeacher = s.teacherId === currentUserId;
-      const partnerId = isTeacher ? s.learnerId : s.teacherId;
-      const partner = db.findById('users', partnerId);
+    if (status) {
+      sessions = sessions.filter(
+        (s) => (s.status || '').toLowerCase() === status.toLowerCase()
+      );
+    }
+
+    const populated = sessions.map((ses) => {
+      const teacher = db.findById('users', ses.teacherId);
+      const learner = db.findById('users', ses.learnerId);
+
+      const safeTeacher = teacher ? (({ password, ...u }) => u)(teacher) : null;
+      const safeLearner = learner ? (({ password, ...u }) => u)(learner) : null;
+
+      const isTeacher = String(ses.teacherId) === String(userId);
+      const partner = isTeacher ? safeLearner : safeTeacher;
 
       return {
-        ...s,
+        ...ses,
+        teacher: safeTeacher,
+        learner: safeLearner,
+        partner: partner || { name: 'Partner', avatar: 'SP' },
         isTeacher,
-        partner: partner
-          ? {
-              id: partner.id,
-              name: partner.name,
-              username: partner.username,
-              avatar: partner.avatar,
-              role: partner.role,
-              rating: partner.rating,
-              location: partner.location,
-            }
-          : { id: partnerId, name: 'Partner' },
       };
     });
 
-    // Sort by date ascending (soonest first)
-    populated.sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}`) - new Date(`${b.date}T${b.time || '00:00'}`));
+    populated.sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
+      const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
+      return dateA - dateB;
+    });
 
     return res.json({
       success: true,
@@ -52,47 +58,50 @@ exports.createSession = async (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : 'usr_narendar';
     const {
-      partnerId,
+      exchangeId,
+      learnerId,
+      teacherId,
       skill,
       date,
       time,
       duration = 60,
-      meetingLink,
       notes,
-      exchangeId,
-      asTeacher = true,
+      meetingLink,
     } = req.body;
 
-    if (!partnerId || !date || !time) {
-      return res.status(400).json({
-        success: false,
-        message: 'Partner ID, date, and time are required to schedule a session.',
-      });
-    }
+    const actualTeacherId = teacherId || currentUserId;
+    const actualLearnerId = learnerId || (currentUserId === actualTeacherId ? 'usr_priya' : currentUserId);
 
-    const teacherId = asTeacher ? currentUserId : partnerId;
-    const learnerId = asTeacher ? partnerId : currentUserId;
-
-    const roomId = `room-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-    const finalMeetingLink = meetingLink || `https://meet.skillor.io/${roomId}`;
+    const generatedLink =
+      meetingLink ||
+      `https://meet.skillor.io/room-${Math.random().toString(36).substring(2, 9)}`;
 
     const newSession = db.insert('sessions', {
+      id: `ses_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       exchangeId: exchangeId || null,
-      teacherId,
-      learnerId,
-      skill: skill || 'Peer Skill Exchange',
-      date,
-      time,
-      duration: Number(duration),
-      meetingLink: finalMeetingLink,
-      notes: notes || '1-on-1 collaborative interactive learning session.',
+      teacherId: actualTeacherId,
+      learnerId: actualLearnerId,
+      skill: skill || 'Full-Stack Skill Exchange',
+      date: date || new Date().toISOString().split('T')[0],
+      time: time || '18:00',
+      duration: Number(duration) || 60,
+      meetingLink: generatedLink,
       status: 'scheduled',
+      notes: notes || 'Live peer-to-peer interactive practice and feedback session.',
+      createdAt: new Date().toISOString(),
     });
+
+    const teacher = db.findById('users', actualTeacherId);
+    const learner = db.findById('users', actualLearnerId);
 
     return res.status(201).json({
       success: true,
-      message: 'Session successfully scheduled!',
-      session: newSession,
+      message: 'Learning session booked and scheduled successfully!',
+      session: {
+        ...newSession,
+        teacher: teacher ? (({ password, ...u }) => u)(teacher) : null,
+        learner: learner ? (({ password, ...u }) => u)(learner) : null,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -102,34 +111,11 @@ exports.createSession = async (req, res) => {
 exports.updateSession = async (req, res) => {
   try {
     const { id } = req.params;
-    const session = db.findById('sessions', id);
-
-    if (!session) {
-      return res.status(404).json({ success: false, message: 'Session not found.' });
-    }
-
-    const allowed = ['date', 'time', 'status', 'meetingLink', 'notes', 'duration'];
-    const updates = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) {
-        updates[key] = req.body[key];
-      }
-    }
+    const updates = req.body;
 
     const updated = db.update('sessions', id, updates);
-
-    // If marked completed, increment hours for both teacher and learner
-    if (updates.status === 'completed' && session.status !== 'completed') {
-      const hours = (updated.duration || 60) / 60;
-      [session.teacherId, session.learnerId].forEach((uid) => {
-        const u = db.findById('users', uid);
-        if (u) {
-          db.update('users', uid, {
-            sessionsCompleted: (u.sessionsCompleted || 0) + 1,
-            hoursExchanged: Math.round(((u.hoursExchanged || 0) + hours) * 10) / 10,
-          });
-        }
-      });
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Session not found.' });
     }
 
     return res.json({
@@ -145,15 +131,15 @@ exports.updateSession = async (req, res) => {
 exports.deleteSession = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = db.delete('sessions', id);
+    const removed = db.delete('sessions', id);
 
-    if (!deleted) {
+    if (!removed) {
       return res.status(404).json({ success: false, message: 'Session not found.' });
     }
 
     return res.json({
       success: true,
-      message: 'Session cancelled and removed.',
+      message: 'Session cancelled and deleted.',
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
