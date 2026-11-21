@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
-const { requireAuth } = require('../middleware/authMiddleware');
+const chatController = require('../controllers/chatController');
+const { optionalAuth } = require('../middleware/authMiddleware');
 
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.get('/me', requireAuth, authController.me);
-router.post('/quick-demo', authController.quickDemo);
-router.post('/forgot-password', authController.forgotPassword);
+router.get('/conversations', optionalAuth, chatController.getConversations);
+router.get('/conversations/:conversationId/messages', optionalAuth, chatController.getMessages);
+router.post('/conversations/:conversationId/messages', optionalAuth, chatController.sendMessage);
+router.post('/conversations/start', optionalAuth, chatController.startConversation);
 
 module.exports = router;
